@@ -1,0 +1,38 @@
+pip install opencv-python opencv-python-headless tensorflow
+import cv2
+import numpy as np
+
+# Load pre-trained models
+age_net = cv2.dnn.readNetFromCaffe('deploy_age.prototxt', 'age_net.caffemodel')
+gender_net = cv2.dnn.readNetFromCaffe('deploy_gender.prototxt', 'gender_net.caffemodel')
+
+# Define model mean values
+MODEL_MEAN_VALUES = (78.4263377603, 87.7689143744, 114.895847746)
+
+# Define age and gender lists
+age_list = ['(0-2)', '(4-6)', '(8-12)', '(15-20)', '(25-32)', '(38-43)', '(48-53)', '(60-100)']
+gender_list = ['Male', 'Female']
+
+# Load image
+image_path = 'path_to_your_image.jpg'
+image = cv2.imread(image_path)
+
+# Prepare the image for the network
+blob = cv2.dnn.blobFromImage(image, 1.0, (227, 227), MODEL_MEAN_VALUES, swapRB=False)
+
+# Predict gender
+gender_net.setInput(blob)
+gender_preds = gender_net.forward()
+gender = gender_list[gender_preds[0].argmax()]
+
+# Predict age
+age_net.setInput(blob)
+age_preds = age_net.forward()
+age = age_list[age_preds[0].argmax()]
+
+# Display the results
+label = f"{gender}, {age}"
+cv2.putText(image, label, (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 255, 0), 2, cv2.LINE_AA)
+cv2.imshow("Age and Gender Prediction", image)
+cv2.waitKey(0)
+cv2.destroyAllWindows()
