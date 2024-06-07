@@ -1,0 +1,67 @@
+pip install pandas numpy scikit-learn matplotlib seaborn
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+import seaborn as sns
+from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import StandardScaler
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.metrics import classification_report, confusion_matrix, accuracy_score
+
+# Load dataset
+# Assume 'churn_data.csv' is your dataset file
+# Example dataset format:
+#   customer_id,age,gender,tenure,monthly_charges,total_charges,churn
+#   1,25,Male,12,29.85,298.50,No
+#   2,34,Female,34,56.95,1936.65,Yes
+data = pd.read_csv('churn_data.csv')
+
+# Data preprocessing
+# Convert 'churn' column to binary
+data['churn'] = data['churn'].apply(lambda x: 1 if x == 'Yes' else 0)
+
+# Handle missing values if any
+data = data.dropna()
+
+# Convert categorical variables into dummy/indicator variables
+data = pd.get_dummies(data, columns=['gender'], drop_first=True)
+
+# Define feature variables and target variable
+X = data.drop(['customer_id', 'churn'], axis=1)
+y = data['churn']
+
+# Split the dataset into training and testing sets
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.3, random_state=42)
+
+# Feature scaling
+scaler = StandardScaler()
+X_train = scaler.fit_transform(X_train)
+X_test = scaler.transform(X_test)
+
+# Build the Random Forest model
+rf_model = RandomForestClassifier(n_estimators=100, random_state=42)
+rf_model.fit(X_train, y_train)
+
+# Make predictions
+y_pred = rf_model.predict(X_test)
+
+# Evaluate the model
+print("Confusion Matrix:")
+print(confusion_matrix(y_test, y_pred))
+print("\nClassification Report:")
+print(classification_report(y_test, y_pred))
+print("\nAccuracy Score:")
+print(accuracy_score(y_test, y_pred))
+
+# Feature Importance
+feature_importances = pd.DataFrame(rf_model.feature_importances_,
+                                   index = X.columns,
+                                   columns=['importance']).sort_values('importance', ascending=False)
+print("\nFeature Importances:")
+print(feature_importances)
+
+# Plot Feature Importances
+plt.figure(figsize=(10, 6))
+sns.barplot(x=feature_importances.importance, y=feature_importances.index)
+plt.title("Feature Importances")
+plt.show()
