@@ -1,0 +1,106 @@
+pip install tensorflow keras numpy pandas matplotlib scikit-learn
+import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
+import os
+from sklearn.model_selection import train_test_split
+from tensorflow.keras.preprocessing.image import ImageDataGenerator
+from tensorflow.keras.models import Sequential
+from tensorflow.keras.layers import Conv2D, MaxPooling2D, Flatten, Dense, Dropout, BatchNormalization
+from tensorflow.keras.optimizers import Adam
+from tensorflow.keras.callbacks import EarlyStopping
+
+# Load dataset
+# Assuming images are stored in 'images/' directory and labels in 'labels.csv'
+# Example labels.csv format:
+#   image,label
+#   image_1.png,0
+#   image_2.png,1
+labels = pd.read_csv('labels.csv')
+
+# Image and label loading function
+def load_images(img_dir, img_labels, target_size=(224, 224)):
+    images = []
+    labels = []
+    for img_name, label in zip(img_labels['image'], img_labels['label']):
+        img_path = os.path.join(img_dir, img_name)
+        img = plt.imread(img_path)
+        img = plt.imresize(img, target_size)
+        images.append(img)
+        labels.append(label)
+    return np.array(images), np.array(labels)
+
+# Load images and labels
+X, y = load_images('images', labels)
+
+# Normalize the images
+X = X / 255.0
+
+# Split the dataset into training and testing sets
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+
+# Data augmentation
+datagen = ImageDataGenerator(
+    rotation_range=20,
+    zoom_range=0.15,
+    width_shift_range=0.2,
+    height_shift_range=0.2,
+    shear_range=0.15,
+    horizontal_flip=True,
+    fill_mode="nearest"
+)
+
+# Build the CNN model
+model = Sequential([
+    Conv2D(32, (3, 3), activation='relu', input_shape=(224, 224, 3)),
+    MaxPooling2D((2, 2)),
+    BatchNormalization(),
+    
+    Conv2D(64, (3, 3), activation='relu'),
+    MaxPooling2D((2, 2)),
+    BatchNormalization(),
+    
+    Conv2D(128, (3, 3), activation='relu'),
+    MaxPooling2D((2, 2)),
+    BatchNormalization(),
+    
+    Flatten(),
+    
+    Dense(256, activation='relu'),
+    Dropout(0.5),
+    Dense(128, activation='relu'),
+    Dropout(0.5),
+    Dense(1, activation='sigmoid')
+])
+
+# Compile the model
+model.compile(optimizer=Adam(learning_rate=0.001), loss='binary_crossentropy', metrics=['accuracy'])
+
+# Early stopping
+early_stopping = EarlyStopping(monitor='val_loss', patience=5, restore_best_weights=True)
+
+# Train the model
+history = model.fit(
+    datagen.flow(X_train, y_train, batch_size=32),
+    validation_data=(X_test, y_test),
+    epochs=50,
+    callbacks=[early_stopping]
+)
+
+# Evaluate the model
+loss, accuracy = model.evaluate(X_test, y_test)
+print(f'Test Accuracy: {accuracy*100:.2f}%')
+
+# Plot training history
+plt.figure(figsize=(12, 4))
+plt.subplot(1, 2, 1)
+plt.plot(history.history['accuracy'], label='Train Accuracy')
+plt.plot(history.history['val_accuracy'], label='Validation Accuracy')
+plt.legend()
+plt.title('Accuracy')
+plt.subplot(1, 2, 2)
+plt.plot(history.history['loss'], label='Train Loss')
+plt.plot(history.history['val_loss'], label='Validation Loss')
+plt.legend()
+plt.title('Loss')
+plt.show()
